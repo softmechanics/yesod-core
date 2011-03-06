@@ -24,7 +24,9 @@
 module Yesod.Handler
     ( -- * Type families
       Route
+      -- * Type Classes
     , YesodSubRoute (..)
+    , YesodMiddleware (..)
       -- * Handler monad
     , GHandler
     , GGHandler
@@ -146,6 +148,9 @@ type family Route a
 
 class YesodSubRoute s y where
     fromSubRoute :: s -> y -> Route s -> Route y
+
+class YesodMiddleware s y where
+  yesodMiddleware :: s -> y -> GHandler s y ChooseRep -> GHandler s y ChooseRep
 
 data HandlerData sub master = HandlerData
     { handlerRequest :: Request
@@ -643,7 +648,7 @@ lookupSession n = GHandler $ do
 getSession :: Monad mo => GGHandler s m mo SessionMap
 getSession = liftM ghsSession $ GHandler $ lift $ lift $ lift get
 
-handlerToYAR :: (HasReps a, HasReps b)
+handlerToYAR :: (HasReps a, HasReps b, YesodMiddleware s m)
              => m -- ^ master site foundation
              -> s -- ^ sub site foundation
              -> (Route s -> Route m)
@@ -657,7 +662,8 @@ handlerToYAR :: (HasReps a, HasReps b)
 handlerToYAR y s toMasterRoute render errorHandler rr murl sessionMap h =
     unYesodApp ya eh' rr types sessionMap
   where
-    ya = runHandler h render murl toMasterRoute y s
+    h' = yesodMiddleware s y $ fmap chooseRep h
+    ya = runHandler h' render murl toMasterRoute y s
     eh' er = runHandler (errorHandler' er) render murl toMasterRoute y s
     types = httpAccept $ reqWaiRequest rr
     errorHandler' = localNoCurrent . errorHandler

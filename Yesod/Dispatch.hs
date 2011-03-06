@@ -126,7 +126,9 @@ mkYesodGeneral name args clazzes isSub res = do
     yd <- mkYesodDispatch' resSub resLoc
     let master = mkName "master"
     let ctx = if isSub
-                then ClassP (mkName "Yesod") [VarT master] : clazzes
+                then   ClassP (mkName "Yesod") [VarT master] 
+                     : ClassP (mkName "YesodMiddleware") [arg, VarT master]
+                     : clazzes
                 else []
     let ytyp = if isSub
                 then ConT ''YesodDispatch `AppT` arg `AppT` VarT master
@@ -159,7 +161,7 @@ thResourceFromResource (Resource n _ _) =
 -- handler. This is the same as 'toWaiAppPlain', except it includes three
 -- middlewares: GZIP compression, JSON-P and path cleaning. This is the
 -- recommended approach for most users.
-toWaiApp :: (Yesod y, YesodDispatch y y) => y -> IO W.Application
+toWaiApp :: YesodDispatch y y => y -> IO W.Application
 toWaiApp y = do
     a <- toWaiAppPlain y
     return $ gzip False
@@ -168,12 +170,12 @@ toWaiApp y = do
 
 -- | Convert the given argument into a WAI application, executable with any WAI
 -- handler. This differs from 'toWaiApp' in that it uses no middlewares.
-toWaiAppPlain :: (Yesod y, YesodDispatch y y) => y -> IO W.Application
+toWaiAppPlain :: YesodDispatch y y => y -> IO W.Application
 toWaiAppPlain a = do
     key' <- encryptKey a
     return $ toWaiApp' a key'
 
-toWaiApp' :: (Yesod y, YesodDispatch y y)
+toWaiApp' :: YesodDispatch y y
           => y
           -> Maybe Key
           -> W.Application

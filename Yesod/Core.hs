@@ -67,18 +67,18 @@ class Eq u => RenderRoute u where
 
 -- | This class is automatically instantiated when you use the template haskell
 -- mkYesod function. You should never need to deal with it directly.
-class YesodDispatch a master where
+class ( Yesod master
+      , YesodMiddleware a master
+      ) => YesodDispatch a master where
     yesodDispatch
-        :: Yesod master
-        => a
+        :: a
         -> Maybe CS.Key
         -> [String]
         -> master
         -> (Route a -> Route master)
         -> Maybe W.Application
 
-    yesodRunner :: Yesod master
-                => a
+    yesodRunner :: a
                 -> master
                 -> (Route a -> Route master)
                 -> Maybe CS.Key -> Maybe (Route a) -> GHandler a master ChooseRep -> W.Application
@@ -215,7 +215,7 @@ class RenderRoute (Route a) => Yesod a where
     sessionIpAddress :: a -> Bool
     sessionIpAddress _ = True
 
-defaultYesodRunner :: Yesod master
+defaultYesodRunner :: (Yesod master, YesodMiddleware a master)
                    => a
                    -> master
                    -> (Route a -> Route master)
